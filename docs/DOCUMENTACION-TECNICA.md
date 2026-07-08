@@ -34,7 +34,7 @@ Este es el **Proyecto 2** de la serie. En el Proyecto 1 automatizamos la **inter
 
 Muchos conceptos se comparten con el Proyecto 1 (fixtures, builders, config por ambiente, etiquetas @smoke/@regression). Eso es **a propósito**: un buen framework mantiene coherencia. Lo nuevo acá es el **contract testing**, los **API Clients**, la **autenticación** y el **encadenamiento** de requests.
 
-La API que probamos es **Restful-Booker**, un sistema de reservas de hotel de demostración, pública y pensada para practicar testing de API.
+La API bajo prueba es **Restful-Booker**, un sistema de reservas de hotel de demostración, público y ampliamente utilizado como banco de pruebas para testing de API.
 
 ---
 
