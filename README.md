@@ -1,133 +1,116 @@
-# Framework de Testing de API — Playwright + TypeScript + Zod (Restful-Booker)
+# Framework de Testing de API — Playwright + TypeScript + Zod
 
-Framework de automatización de **pruebas de API** construido con **Playwright**, **TypeScript** y **Zod**, sobre la API pública [Restful-Booker](https://restful-booker.herokuapp.com). Cubre autenticación, CRUD completo, **validación de contratos** (schema), casos negativos, **encadenamiento** de requests y el patrón de **setup por API**.
-
-Es el **Proyecto 2** de un portfolio para perfil **QA Automation Semi-Senior / Senior**, y es la pieza que le faltaba a la [pirámide de testing](https://github.com/fercarballo/playwright-e2e-framework-saucedemo): la capa de API, más rápida y estable que la de UI.
+Suite de automatización de **pruebas de API** con validación de contratos, construida con **Playwright**, **TypeScript** y **Zod**. Cubre autenticación, CRUD completo, casos negativos, encadenamiento de requests y preparación de datos por API.
 
 ---
 
-## Qué demuestra este proyecto
+## Resumen ejecutivo
 
-| Capacidad | Cómo se ve en el código |
+| | |
 |---|---|
-| **Testing de API sin UI** | Fixture `request` de Playwright; **no** se instalan navegadores |
-| **API Clients** | `AuthClient`, `BookingClient` (el POM del mundo API) |
-| **Contract testing** | Schemas de **Zod** validan la forma de cada respuesta |
-| **Tipos derivados del schema** | `z.infer` → una sola fuente de verdad para tipos y validación |
-| **CRUD end-to-end** | Encadenamiento: crear → leer → actualizar → borrar → 404 |
-| **Setup por API** | Fixture `createdBooking` crea datos por API como precondición |
-| **Casos negativos** | Auth inválida, 404, 403 sin token |
-| **Autenticación** | Token vía header `Cookie`, probado en updates protegidos |
-| **Datos con Builder** | `BookingBuilder` con deep clone |
-| **Config por ambiente** | `API_BASE_URL` y credenciales por variable de entorno |
-| **Type safety** | `tsc --noEmit` en verde, `strict: true` |
-| **CI/CD** | Workflow de GitHub Actions (más liviano que el de UI) |
+| **Qué es** | Una suite que valida una API REST no solo en su comportamiento, sino en el **contrato** de sus respuestas (estructura y tipos de cada campo). |
+| **Problema que resuelve** | Verificar un `200 OK` no garantiza nada: una respuesta con un campo faltante o un tipo cambiado rompe al cliente con el test en verde. Este proyecto valida la forma real de cada respuesta y detecta rupturas de contrato. |
+| **Alcance** | Autenticación por token, CRUD de reservas, casos negativos (401/403/404), y un flujo end-to-end encadenado. |
+| **Resultado** | 12 casos ejecutándose en **~2 segundos, sin navegador**, con validación de contrato en cada respuesta e integración continua. |
+| **Stack** | Playwright (`APIRequestContext`) · Zod · TypeScript (`strict`) · GitHub Actions |
 
 ---
 
-## Stack
+## Posición en la estrategia de testing
 
-- **[Playwright Test](https://playwright.dev/docs/api-testing)** — runner + cliente HTTP (`request` / `APIRequestContext`).
-- **[Zod](https://zod.dev)** — validación de schemas en runtime (contract testing) y tipos derivados.
-- **TypeScript** (`strict`) — tipado estático.
-- **Node.js** — entorno de ejecución.
-
----
-
-## Estructura del proyecto
-
-```
-proyecto-2-api-testing/
-├── src/
-│   ├── config/
-│   │   └── env.ts                  # baseURL + credenciales desde variables de entorno
-│   ├── schemas/                    # CONTRATOS (Zod) — validación + tipos
-│   │   ├── auth.schema.ts
-│   │   └── booking.schema.ts
-│   ├── clients/                    # API Clients (encapsulan los endpoints)
-│   │   ├── AuthClient.ts
-│   │   └── BookingClient.ts
-│   ├── data/
-│   │   └── booking.builder.ts      # Builder de payloads de reserva
-│   └── fixtures/
-│       └── api.fixture.ts          # Fixtures: clients + token + setup-por-API
-├── tests/
-│   ├── health/ping.spec.ts         # Health check
-│   ├── auth/auth.spec.ts           # Autenticación (+ caso negativo)
-│   └── booking/
-│       ├── create.spec.ts          # POST + contract testing
-│       ├── read.spec.ts            # GET + 404
-│       ├── update.spec.ts          # PUT/PATCH + auth + 403
-│       └── crud-e2e.spec.ts        # Ciclo completo encadenado ⭐
-├── docs/
-│   ├── GUIA-DE-APRENDIZAJE.md      # Documento de estudio (el "por qué" de todo)
-│   └── Guia-de-Aprendizaje.pdf
-├── .github/workflows/ci.yml
-├── playwright.config.ts
-├── tsconfig.json
-├── .env.example
-└── package.json
+```mermaid
+flowchart TD
+    E["E2E / UI"]
+    A["Integración / API &nbsp;←&nbsp; este proyecto"]
+    U["Unitarias"]
+    E --> A --> U
+    style A fill:#1a3a5c,color:#fff
 ```
 
-> El detalle de **por qué** cada decisión está en **[docs/GUIA-DE-APRENDIZAJE.md](docs/GUIA-DE-APRENDIZAJE.md)**.
+El testing de API cubre la capa intermedia: más rápida y estable que la UI, valida la lógica de negocio del backend directamente por HTTP. Es donde conviene concentrar la mayor parte de la cobertura.
 
 ---
 
-## Requisitos previos
+## Flujo end-to-end verificado
 
-- **Node.js** 18 o superior.
-- Conexión a internet (la API es pública).
+```mermaid
+flowchart LR
+    C["POST /booking<br/>(crear)"] --> R["GET /booking/{id}<br/>(leer + validar)"]
+    R --> U["PUT /booking/{id}<br/>(actualizar, con auth)"]
+    U --> D["DELETE /booking/{id}<br/>(borrar)"]
+    D --> V["GET /booking/{id}<br/>→ 404 (verificar baja)"]
+    style C fill:#2e6da4,color:#fff
+    style V fill:#1a3a5c,color:#fff
+```
+
+Cada paso alimenta al siguiente (encadenamiento), y el paso final verifica el **efecto** —que el recurso realmente se eliminó—, no solo el código de respuesta.
 
 ---
 
-## Instalación
+## Capacidades técnicas
+
+| Capacidad | Implementación |
+|---|---|
+| **Contract testing** | Schemas de **Zod** validan la forma de cada respuesta en runtime |
+| **Tipos derivados del contrato** | `z.infer` → una sola fuente de verdad para validación y tipos |
+| **API Clients** | `AuthClient`, `BookingClient` encapsulan los endpoints |
+| **Preparación de datos por API** | Fixture que crea los datos de precondición vía API, con limpieza |
+| **Casos negativos** | Credenciales inválidas, recurso inexistente (404), sin permiso (403) |
+| **Autenticación** | Token por header, probado en endpoints protegidos |
+| **Datos con Builder** | Construcción de payloads con copia profunda |
+| **Configuración por ambiente** | URL y credenciales por variable de entorno |
+
+---
+
+## Estructura
+
+```
+src/
+├── config/env.ts        # baseURL + credenciales desde variables de entorno
+├── schemas/             # contratos (Zod): validación + tipos
+├── clients/             # API Clients (encapsulan los endpoints)
+├── data/                # builder de payloads
+└── fixtures/            # clients + token + preparación de datos por API
+tests/
+├── health/  auth/  booking/    # tests por recurso
+```
+
+---
+
+## Uso
 
 ```bash
-npm install
+npm install                  # no requiere navegadores
+
+npm test                     # suite completa (~2s)
+npm run test:smoke           # tests críticos (@smoke)
+npm run typecheck
+npm run report
 ```
 
-> **No hace falta `npx playwright install`.** El testing de API no usa navegadores. Una de las ventajas de esta capa.
-
----
-
-## Cómo correr los tests
+Configuración por ambiente:
 
 ```bash
-npm test                 # Toda la suite
-npm run test:smoke       # Solo los tests críticos (@smoke)
-npm run test:regression  # La regresión completa (@regression)
-npm run test:debug       # Modo debug
-npm run typecheck        # Verificación de tipos (sin correr tests)
-npm run report           # Abre el último reporte HTML
-```
-
----
-
-## Configuración por ambiente
-
-```bash
-# Apuntar a otra instancia de la API
 API_BASE_URL=https://otra-api.com npm test
-
-# O con archivo .env
-cp .env.example .env
 ```
 
 ---
 
-## Documentación de estudio
+## Documentación técnica
 
-**[docs/GUIA-DE-APRENDIZAJE.md](docs/GUIA-DE-APRENDIZAJE.md)** explica, con alternativas y pros/contras: por qué testear API, la pirámide, contract testing con Zod, API Clients, fixtures, setup por API, encadenamiento, autenticación, casos negativos, idempotencia y CI.
+**[docs/DOCUMENTACION-TECNICA.md](docs/DOCUMENTACION-TECNICA.md)** detalla el diseño: contract testing con Zod, API Clients, preparación de datos por API, autenticación, encadenamiento, idempotencia y aislamiento sobre un backend compartido.
 
 ---
 
-## Roadmap (portfolio QA Automation Sr)
+## Contexto
 
-1. [Framework E2E web (Playwright)](https://github.com/fercarballo/playwright-e2e-framework-saucedemo) — ✅
-2. **Testing de API** ← *estás acá*
-3. Pipeline CI/CD completo
-4. Caza de flakiness y estabilidad
-5. Visual regression + contract testing (Pact)
+Segundo de una serie de proyectos de automatización de calidad:
+
+1. [Framework E2E de UI (Playwright)](https://github.com/fercarballo/playwright-e2e-framework-saucedemo)
+2. **Testing de API** — este repositorio
+3. [Pipeline CI/CD (GitHub Actions)](https://github.com/fercarballo/qa-automation-cicd-pipeline)
+4. [Estabilidad y flakiness](https://github.com/fercarballo/flakiness-hunting-playwright)
+5. [Regresión visual & contract testing](https://github.com/fercarballo/visual-and-contract-testing)
 
 ---
 

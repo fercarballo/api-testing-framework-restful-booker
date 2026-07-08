@@ -1,10 +1,10 @@
-# Guía de Aprendizaje — Framework de Testing de API con Playwright + TypeScript + Zod
+# Documentación Técnica — Framework de Testing de API con Playwright + TypeScript + Zod
 
-> Este documento explica **qué** construimos, **por qué** cada decisión, **qué alternativas** existían y sus **pros y contras**. Es la continuación natural del Proyecto 1 (framework E2E de UI): acá bajamos un escalón en la pirámide de testing, a la capa de **API**.
+> Documentación de referencia del diseño, las decisiones técnicas y el funcionamiento del proyecto, incluyendo las alternativas evaluadas con sus ventajas y desventajas.
 
 ## Índice
 
-1. [Cómo usar esta guía](#1-cómo-usar-esta-guía)
+1. [Alcance](#1-alcance)
 2. [Qué es el testing de API y por qué importa](#2-qué-es-el-testing-de-api-y-por-qué-importa)
 3. [La API bajo prueba: Restful-Booker](#3-la-api-bajo-prueba-restful-booker)
 4. [Por qué Playwright para API (vs Postman vs otras librerías)](#4-por-qué-playwright-para-api-vs-postman-vs-otras-librerías)
@@ -22,17 +22,17 @@
 16. [Aislamiento en una API compartida](#16-aislamiento-en-una-api-compartida)
 17. [La configuración de Playwright para API](#17-la-configuración-de-playwright-para-api)
 18. [CI/CD para API (más liviano)](#18-cicd-para-api-más-liviano)
-19. [Ejercicios para practicar](#19-ejercicios-para-practicar)
+19. [Extensiones sugeridas](#19-extensiones-sugeridas)
 20. [Glosario](#20-glosario)
 21. [Próximos pasos](#21-próximos-pasos)
 
 ---
 
-## 1. Cómo usar esta guía
+## 1. Alcance
 
-Este es el **Proyecto 2** del portfolio. En el Proyecto 1 automatizamos la **interfaz** (UI) de una tienda. Acá automatizamos la **API**: probamos el backend directamente, sin navegador, haciendo llamadas HTTP y verificando las respuestas.
+Este es el **Proyecto 2** de la serie. En el Proyecto 1 automatizamos la **interfaz** (UI) de una tienda. Acá automatizamos la **API**: probamos el backend directamente, sin navegador, haciendo llamadas HTTP y verificando las respuestas.
 
-Si venís del Proyecto 1, muchos conceptos se repiten (fixtures, builders, config por ambiente, etiquetas @smoke/@regression). Eso es **a propósito**: un buen framework mantiene coherencia. Lo nuevo acá es el **contract testing**, los **API Clients**, la **autenticación** y el **encadenamiento** de requests.
+Muchos conceptos se comparten con el Proyecto 1 (fixtures, builders, config por ambiente, etiquetas @smoke/@regression). Eso es **a propósito**: un buen framework mantiene coherencia. Lo nuevo acá es el **contract testing**, los **API Clients**, la **autenticación** y el **encadenamiento** de requests.
 
 La API que probamos es **Restful-Booker**, un sistema de reservas de hotel de demostración, pública y pensada para practicar testing de API.
 
@@ -94,8 +94,6 @@ Antes de escribir un solo test, hicimos **reconocimiento** de la API con `curl`.
 1. **Auth inválida devuelve `200`, no `401`.** Con credenciales incorrectas, la API responde `200 OK` con un body `{ "reason": "Bad credentials" }`. Si hubiéramos asumido que un login fallido da 401, el test sería incorrecto.
 2. **DELETE devuelve `201 Created`, no `200`/`204`.** Es un comportamiento no estándar (borrar y responder "Created" es raro), pero es el real. Nuestro test verifica `201`.
 3. **La autenticación va por header `Cookie: token=...`.** No es el típico `Authorization: Bearer`. Sin ese header, los endpoints protegidos devuelven `403 Forbidden`.
-
-> **Lección de seniority:** estas tres cosas resumen la mentalidad del testing de API. Documentación y estándares son una guía, pero **la fuente de verdad es el comportamiento real de la API**, que se verifica empíricamente. Cuando en una entrevista te pregunten "¿cómo empezás a testear una API nueva?", la respuesta es: reconocimiento primero (explorar los endpoints y su comportamiento real), diseño de casos después.
 
 ---
 
@@ -312,8 +310,6 @@ test('GET /booking/{id} existente...', async ({ bookingClient, createdBooking })
 
 **Setup + teardown.** Todo lo que va **antes** del `await use(...)` es preparación; lo que va **después** es limpieza. El `.catch(() => {})` en el delete es intencional: si el test ya borró la reserva (como el CRUD e2e) o el server la purgó, la limpieza no debe romper. Es un teardown "best-effort".
 
-> **Este es uno de los patrones más valorados en testing de API.** Crear datos por API en el setup hace los tests **rápidos, aislados y autocontenidos**, en vez de depender de un estado preexistente que no controlás. Mencionarlo en una entrevista muestra madurez.
-
 ---
 
 ## 11. Datos con Builder: deep clone vs shallow clone
@@ -337,8 +333,6 @@ a.bookingdates.checkin = '2099-01-01';   // ⚠️ con shallow clone, ¡esto tam
 ```
 
 Como los tests corren **en paralelo**, dos tests podrían compartir y pisar el mismo objeto `bookingdates`, generando fallos aleatorios (flaky). `structuredClone` hace una **copia profunda (deep)**: clona también los objetos anidados, así cada `build()` devuelve datos 100% independientes.
-
-> Deep vs shallow clone es una pregunta clásica de entrevista técnica de JavaScript. Que aparezca naturalmente en tu código de testing demuestra que entendés el lenguaje, no solo la herramienta.
 
 ---
 
@@ -448,7 +442,7 @@ Un error común es probar solo el "camino feliz" (todo sale bien). Los **casos n
 | GET de id inexistente | Devuelve 404 |
 | PUT sin token | Devuelve 403 |
 
-**Por qué importan:** los bugs graves suelen esconderse en los caminos negativos. Que la app funcione cuando todo está bien es lo mínimo; que **falle de forma correcta y segura** cuando algo está mal (que no deje pasar a un usuario sin permiso, que no rompa ante un id inexistente) es lo que separa un sistema robusto de uno frágil. En una entrevista, mencionar que priorizás casos negativos y de borde es una señal fuerte.
+**Por qué importan:** los bugs graves suelen esconderse en los caminos negativos. Que la app funcione cuando todo está bien es lo mínimo; que **falle de forma correcta y segura** cuando algo está mal (que no deje pasar a un usuario sin permiso, que no rompa ante un id inexistente) es lo que separa un sistema robusto de uno frágil.
 
 ---
 
@@ -505,7 +499,7 @@ Igual que en el Proyecto 1, corre en cada push y PR, verifica tipos antes de los
 
 ---
 
-## 19. Ejercicios para practicar
+## 19. Extensiones sugeridas
 
 1. **Nuevo caso negativo:** creá un test que haga `POST /booking` con un body inválido (por ejemplo, `totalprice` como texto) y observá qué status devuelve la API. ¿Es lo que esperabas?
 2. **Schema más estricto:** agregá `.strict()` a `BookingSchema` (que rechaza campos extra). Corré los tests. ¿Siguen pasando? ¿Qué implica para el contract testing?
@@ -543,6 +537,3 @@ Con los Proyectos 1 (UI) y 2 (API) ya cubrís las **dos capas principales de la 
 - **Proyecto 4 — Estabilidad y flakiness:** crear inestabilidad a propósito, medirla y eliminarla.
 - **Proyecto 5 — Visual regression + contract testing con Pact:** el contract testing "consumer-driven" (Pact) lleva la idea de contratos de la sección 5 un paso más allá, verificándolos entre servicios.
 
-**Cómo contarlo en una entrevista (formato problema → decisión → resultado):** *"Construí una suite de testing de API con Playwright, TypeScript y Zod sobre una API de reservas (decisión de stack). El objetivo era cubrir la capa de API con contract testing real y no solo status codes (problema). Logré 12 tests que validan el contrato de cada respuesta con schemas, cubren el CRUD encadenado con autenticación y casos negativos, usan setup por API y corren en ~2 segundos sin navegador, con type-check y CI (resultado)."*
-
-Y lo más importante, igual que con el Proyecto 1: **entendés cada línea porque la construiste.** Eso es lo que te posiciona de verdad.
